@@ -1,0 +1,49 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+$server_script = <<-SCRIPT
+  set -e
+  echo "[+] Updating system packages..."
+  apt-get update -qq && apt-get install -y -qq curl
+
+  echo "[+] Installing K3s in server mode..."
+  # Bind K3s API and flannel to eth1. Traefik ingress is enabled by default.
+  curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC="server \
+    --bind-address=192.168.56.110 \
+    --node-ip=192.168.56.110 \
+    --advertise-address=192.168.56.110 \
+    --flannel-iface=eth1 \
+    --write-kubeconfig-mode=644" sh -
+
+  echo "[+] Setting up KUBECONFIG for vagrant user..."
+  echo "export KUBECONFIG=/etc/rancher/k3s/k3s.yaml" >> /home/vagrant/.bashrc
+
+  # Wait until the node is ready
+  until /usr/local/bin/kubectl get nodes | grep -q " Ready"; do
+    sleep 2
+  done
+
+  # Apply any Kubernetes manifests automatically if placed in /vagrant/confs
+  if [ -d "/vagrant/confs" ]; then
+    echo "[+] Applying manifests from /vagrant/confs..."
+    /usr/local/bin/kubectl apply -f /vagrant/confs/
+  fi
+SCRIPT
+
+Vagrant.configure("2") do |config|
+  config.vm.box = "debian/bookworm64"
+  config.ssh.insert_key = true
+
+  config.vm.define "waiziS" do |server|
+    server.vm.hostname = "waiziS"
+    server.vm.network "private_network", ip: "192.168.56.110"
+
+    server.vm.provider "virtualbox" do |vb|
+      vb.name = "waiziS"
+      vb.cpus = 1
+      vb.memory = 1024
+    end
+
+    server.vm.provision "shell", inline: $server_script
+  end
+end

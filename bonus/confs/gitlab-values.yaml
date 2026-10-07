@@ -1,0 +1,35 @@
+global:
+  hosts:
+    domain: gitlab.local
+  ingress:
+    configureCertmanager: false
+    tls:
+      enabled: false
+
+# Strip out resource-heavy extras
+certmanager:
+  install: false
+gitlab-runner:
+  install: false
+prometheus:
+  install: false
+
+# Restrict replica counts and memory limits
+gitlab:
+  webservice:
+    minReplicas: 1
+    maxReplicas: 1
+    resources:
+      requests:
+        memory: 1.2G
+        cpu: 300m
+  sidekiq:
+    minReplicas: 1
+    maxReplicas: 1
+    resources:
+      requests:
+        memory: 800M
+        cpu: 200m
+  gitlab-shell:
+    minReplicas: 1
+    maxReplicas: 1
